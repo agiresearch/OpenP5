@@ -30,6 +30,7 @@ class MultiTaskDataset(Dataset):
         parser.add_argument("--sequential_order", type=str, default='original', help='The rank of user history during ')
         parser.add_argument("--collaborative_token_size", type=int, default=200, help='the number of tokens used for indexing')
         parser.add_argument("--collaborative_cluster", type=int, default=20, help='the number of clusters in each level for collaborative indexing.')
+        parser.add_argument("--collaborative_last_token", type=str, default='sequential', help='how to assign the last token to items within the same clusters, random or sequential')
         
         # arguments related to sequential task
         parser.add_argument("--max_his", type=int, default=-1, help='the max number of items in history sequence, -1 means no limit')
@@ -69,6 +70,7 @@ class MultiTaskDataset(Dataset):
         self.skip_empty_his = args.skip_empty_his
         self.collaborative_token_size = self.args.collaborative_token_size
         self.collaborative_cluster_num = self.args.collaborative_cluster
+        self.collaborative_last_token = self.args.collaborative_last_token
         
         if self.rank == 0:
             logging.info(f"Generating data for {self.dataset} dataset")
@@ -108,7 +110,7 @@ class MultiTaskDataset(Dataset):
             if self.rank == 0:
                 logging.info(f"Reindex data with collaborative indexing method with token_size {self.collaborative_token_size} and {self.collaborative_cluster_num} cluster")
             self.reindex_user_seq_dict, self.item_map = indexing.collaborative_indexing(self.data_path, self.dataset, self.user_sequence_dict, \
-                                                                                        self.collaborative_token_size, self.collaborative_cluster_num)
+                                                                                        self.collaborative_token_size, self.collaborative_cluster_num, self.collaborative_last_token)
             self.new_token = []
             for idx in list(self.item_map.values()):
                 self.new_token += re.findall(r'\<.*?\>', idx)

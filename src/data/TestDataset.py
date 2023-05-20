@@ -24,6 +24,7 @@ class TestDataset(Dataset):
         
         self.collaborative_token_size = args.collaborative_token_size
         self.collaborative_cluster_num = args.collaborative_cluster
+        self.collaborative_last_token = args.collaborative_last_token
         
         self.prompt = load_prompt_template(args.prompt_file, [self.task])
         check_task_prompt(self.prompt, [self.task])
@@ -49,7 +50,7 @@ class TestDataset(Dataset):
             self.reindex_user_seq_dict, self.item_map = indexing.random_indexing(self.data_path, self.dataset, self.user_sequence_dict)
         elif self.item_indexing == 'collaborative':
             self.reindex_user_seq_dict, self.item_map = indexing.collaborative_indexing(self.data_path, self.dataset, self.user_sequence_dict, \
-                                                                                        self.collaborative_token_size, self.collaborative_cluster_num)
+                                                                                        self.collaborative_token_size, self.collaborative_cluster_num, self.collaborative_last_token)
             self.new_token = []
             for idx in list(self.item_map.values()):
                 self.new_token += re.findall(r'\<.*?\>', idx)
