@@ -1,4 +1,4 @@
-# OpenP5
+# OpenP5: Benchmarking Foundation Models for Recommendation
 
 environment requirements can be found in ./environment.txt
 
