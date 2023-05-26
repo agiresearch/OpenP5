@@ -83,13 +83,13 @@ class DistributedRunner(SingleRunner):
                 self.model.zero_grad()
                 
                 
-                dist.all_reduce(loss, op=dist.ReduceOp.SUM)
+                dist.all_reduce(loss.detach(), op=dist.ReduceOp.SUM)
                 loss /= dist.get_world_size()
                 
                 dist.barrier()
                 
                 if self.rank == 0:
-                    losses.append(loss)
+                    losses.append(loss.detach())
                 
             if self.rank == 0:
                 train_epoch_loss = sum(losses)/len(losses)
@@ -132,13 +132,13 @@ class DistributedRunner(SingleRunner):
 
                         dist.barrier()
 
-                        dist.all_reduce(loss, op=dist.ReduceOp.SUM)
+                        dist.all_reduce(loss.detach(), op=dist.ReduceOp.SUM)
                         loss /= dist.get_world_size()
 
                         dist.barrier()
 
                         if self.rank == 0:
-                            losses.append(loss)
+                            losses.append(loss.detach())
 
                     if self.rank == 0:
                         valid_epoch_loss = sum(losses)/len(losses)
