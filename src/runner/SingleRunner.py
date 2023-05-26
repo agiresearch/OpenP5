@@ -108,7 +108,7 @@ class SingleRunner:
                 self.optimizer.step()
                 self.scheduler.step()
                 self.model.zero_grad()
-                losses.append(loss)
+                losses.append(loss.detach())
             train_epoch_loss = sum(losses)/len(losses)
             train_losses.append(train_epoch_loss)
             logging.info(f"The average training loss for epoch {epoch+1} is {train_epoch_loss}")
@@ -143,7 +143,7 @@ class SingleRunner:
                         loss = loss.view(B, L) * lm_mask
                         loss = (loss.sum(dim=1) / lm_mask.sum(dim=1).clamp(min=1)).mean()
 
-                        losses.append(loss)
+                        losses.append(loss.detach())
                     valid_epoch_loss = sum(losses)/len(losses)
                     valid_losses.append(valid_epoch_loss)
                     logging.info(f"The average valid loss for epoch {epoch+1} is {valid_epoch_loss}")
