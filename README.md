@@ -31,7 +31,7 @@ More results on various datasets can be found in `./OpenP5_more_results.pdf`
 
 ## Usage
 
-Download the data from [Google Drive link](), and put them into `./data` folder.
+Download the data from [Google Drive link](https://drive.google.com/drive/folders/1W5i5ryetj_gkcOpG1aZfL5Y8Yk6RxwYE?usp=sharing), and put them into `./data` folder.
 
 The training command can be found in `./command` folder. Run the command such as 
 
