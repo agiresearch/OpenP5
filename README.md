@@ -42,7 +42,7 @@ sh ML1M_random.sh
 
 ## Checkpoint
 
-Download the checkpoint from [Google Drive Link](), and put them into `./checkpoint` folder.
+Download the checkpoint from [Google Drive Link](https://drive.google.com/drive/folders/19v7vgNBkIRdBm4FwPgHHiRz6Dnom29aR?usp=sharing), and put them into `./checkpoint` folder.
 
 The evaluation command can be found in `./test_command folder`. Run the command such as 
 
