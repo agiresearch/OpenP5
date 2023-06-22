@@ -7,7 +7,7 @@ This repo presents OpenP5, an open-source library for benchmarking foundation mo
 
 ## Environment
 
-environment requirements can be found in `./environment.txt`
+Environment requirements can be found in `./environment.txt`
 
 ## Data Statistics
 
@@ -27,7 +27,7 @@ The statistics of the selected ten datasets can be found below:
 
 ## More Results
 
-More results on selected datasets can be found in `./OpenP5_more_results.pdf`
+More results on various datasets can be found in `./OpenP5_more_results.pdf`
 
 ## Usage
 
