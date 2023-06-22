@@ -5,6 +5,7 @@ from sklearn.cluster import SpectralClustering
 from utils import utils
 from collections import defaultdict
 import os
+from scipy.sparse import csr_matrix
 import pdb
 
 def sequential_indexing(data_path, dataset, user_sequence_dict, order):
@@ -108,7 +109,7 @@ def random_indexing(data_path, dataset, user_sequence_dict):
     utils.WriteDictToFile(reindex_sequence_file, reindex_user_sequence_dict)
     return reindex_user_sequence_dict, item_map
 
-def collaborative_indexing(data_path, dataset, user_sequence_dict, token_size, cluster_num, last_token):
+def collaborative_indexing(data_path, dataset, user_sequence_dict, token_size, cluster_num, last_token, float32):
     """
     Use collaborative indexing method to index the given user seuqnece dict.
     """
@@ -138,16 +139,14 @@ def collaborative_indexing(data_path, dataset, user_sequence_dict, token_size, c
         item_info = utils.ReadLineFromFile(item_index_file)
         item_map = get_dict_from_lines(item_info)
     else:
-        item_map = generate_collaborative_id(user_sequence_dict, token_size, cluster_num, last_token)
+        item_map = generate_collaborative_id(user_sequence_dict, token_size, cluster_num, last_token, float32)
         utils.WriteDictToFile(item_index_file, item_map)
         
     reindex_user_sequence_dict = reindex(user_sequence_dict, user_map, item_map)
     utils.WriteDictToFile(reindex_sequence_file, reindex_user_sequence_dict)
     return reindex_user_sequence_dict, item_map
         
-    
-    
-def generate_collaborative_id(user_sequence_dict, token_size, cluster_num, last_token):
+def generate_collaborative_id(user_sequence_dict, token_size, cluster_num, last_token, float32):
     """
     Generate collaborative index for items.
     """
@@ -167,7 +166,10 @@ def generate_collaborative_id(user_sequence_dict, token_size, cluster_num, last_
         
     
     # calculate the co-occurrence of items in the training data as an adjacency matrix
-    adj_matrix = np.zeros((len(item2id), len(item2id)))
+    if float32 > 0:
+        adj_matrix = np.zeros((len(item2id), len(item2id)), dtype=np.float32)
+    else:
+        adj_matrix = np.zeros((len(item2id), len(item2id)))
     for user in user_sequence_dict:
         interactions = user_sequence_dict[user][:-2]
         for pairs in combinations(interactions, 2):
@@ -213,10 +215,14 @@ def generate_collaborative_id(user_sequence_dict, token_size, cluster_num, last_
                 item_map = add_last_token_to_indexing_random(item_map, item_list, token_size)
         else:
             # calculate the adjacency matrix for current group
-            sub_adj_matrix = np.zeros((len(group_items), len(group_items)))
+            if float32 > 0:
+                sub_adj_matrix = np.zeros((len(group_items), len(group_items)), dtype=np.float32)
+            else:
+                sub_adj_matrix = np.zeros((len(group_items), len(group_items)))
             for i in range(len(group_items)):
                 for j in range(i+1, len(group_items)):
                     sub_adj_matrix[i][j] = adj_matrix[group_items[i][1]][group_items[j][1]]
+                    sub_adj_matrix[j][i] = adj_matrix[group_items[j][1]][group_items[i][1]]
                     
             # get the clustering results for current group        
             clustering = SpectralClustering(

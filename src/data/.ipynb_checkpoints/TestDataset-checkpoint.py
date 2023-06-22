@@ -24,6 +24,8 @@ class TestDataset(Dataset):
         
         self.collaborative_token_size = args.collaborative_token_size
         self.collaborative_cluster_num = args.collaborative_cluster
+        self.collaborative_last_token = args.collaborative_last_token
+        self.collaborative_float32 = args.collaborative_float32
         
         self.prompt = load_prompt_template(args.prompt_file, [self.task])
         check_task_prompt(self.prompt, [self.task])
@@ -49,7 +51,8 @@ class TestDataset(Dataset):
             self.reindex_user_seq_dict, self.item_map = indexing.random_indexing(self.data_path, self.dataset, self.user_sequence_dict)
         elif self.item_indexing == 'collaborative':
             self.reindex_user_seq_dict, self.item_map = indexing.collaborative_indexing(self.data_path, self.dataset, self.user_sequence_dict, \
-                                                                                        self.collaborative_token_size, self.collaborative_cluster_num)
+                                                                                        self.collaborative_token_size, self.collaborative_cluster_num, \
+                                                                                        self.collaborative_last_token, self.collaborative_float32)
             self.new_token = []
             for idx in list(self.item_map.values()):
                 self.new_token += re.findall(r'\<.*?\>', idx)
@@ -57,19 +60,28 @@ class TestDataset(Dataset):
             raise NotImplementedError
             
         self.all_items = list(self.item_map.values())
-            
-        # get positive samples for each user to sample negative candidates or evaluation
-        self.positive = self.get_positive()
+        
+        self.test_prompt = args.test_prompt
+        self.test_filtered = args.test_filtered
+        
+        if args.test_filtered > 0:
+            self.user2id = dict()
+            self.id2user = dict()
+            for user in self.reindex_user_seq_dict:
+                if user not in self.user2id:
+                    self.user2id[user] = len(self.user2id)
+                    self.id2user[len(self.id2user)] = user
+                    
+            # get positive samples for each user to sample negative candidates or evaluation
+            if args.test_filtered_batch > 0:
+                self.positive, self.max_positive = self.get_positive_batch()
+            self.positive = self.get_positive()
         
         # load data
         self.data_samples = self.load_test()
-        self.test_prompt = args.test_prompt
         
-            
-        # sample candidate items
-        if 'candidate_items' in self.info:
-            self.generate_candidates()
-            
+        
+    
         self.construct_sentence()
         # get prompt related info, including numbers and index
         # self.get_prompt_info()
@@ -105,32 +117,37 @@ class TestDataset(Dataset):
         """
         positive = dict()
         for user in self.reindex_user_seq_dict:
-            positive[user] = set(self.reindex_user_seq_dict[user])
+            positive[user] = set(self.reindex_user_seq_dict[user][:-1])
+            
         return positive
+    
+    def get_positive_batch(self):
+        """
+        Get a dict of set to save the positive interactions for negative candidate sampling
+        """
+        max_positive = 0
+        positive = dict()
+        info = self.test_prompt.split(':')
+        prompt = self.prompt[self.task][info[0]][info[1]]
+        data_format = dict()
+        data_format['dataset'] = self.dataset
+        for user in self.reindex_user_seq_dict:
+            positive[user] = set()
+            positive_id = self.reindex_user_seq_dict[user][:-1]
+            
+            for item in positive_id:
+                if self.prefix > 0:
+                    data_format['target'] = 'item_' + item
+                else:
+                    data_format['target'] = item
+                positive[user].add(prompt['Output'].format(**data_format))
+                
+            if len(positive[user]) > max_positive:    
+                max_positive = len(positive[user])
+        return positive, max_positive
     
     def __len__(self):
         return len(self.data_samples)
-    
-    def generate_candidates(self):
-        """
-        Generate candidate items for each data sample, the candidate items include the target item and negative items 
-        """
-        
-        for i in range(len(self.data_samples)):
-            row = self.data_samples[i]
-            user = row['user_id']
-            item = row['target']
-            i = 0
-            neg = []
-            while i < self.candidate_neg_num:
-                n = random.randint(0, len(self.all_items) - 1)
-                if self.all_items[n] not in self.positive[user]:
-                    neg.append(self.all_items[n])
-                    i += 1
-            neg.append(item)
-            random.shuffle(neg)
-            row['candidate_items'] = self.candidate_sep.join(neg)
-        return
     
     def construct_sentence(self):
         self.data = {}
@@ -142,14 +159,22 @@ class TestDataset(Dataset):
             datapoint = self.data_samples[i]
             self.data['input'].append(prompt['Input'].format(**datapoint))
             self.data['output'].append(prompt['Output'].format(**datapoint))
-        
-    
+            
     def __getitem__(self, idx):
-        # data_id, prompt = self.identify_prompt(idx)
-        # datapoint = self.data_samples[data_id]
+        if self.test_filtered > 0:
+            return self.get_item_filtered(idx)
+        else:
+            return self.get_item(idx)
         
-        # return {'input': prompt['Input'].format(**datapoint),
-        #        'output': prompt['Output'].format(**datapoint)}
+    def get_item_filtered(self, idx):
+        
+        
+        return {'user_idx': self.user2id[self.data_samples[idx]['user_id']],
+               'input': self.data['input'][idx],
+               'output': self.data['output'][idx]}
+    
+    def get_item(self, idx):
+        
         
         return {'input': self.data['input'][idx],
                'output': self.data['output'][idx]}

@@ -9,6 +9,7 @@ from utils.prompt import load_prompt_template, get_info_from_prompt,check_task_p
 from utils import utils
 from utils import indexing
 from collections import defaultdict
+import torch.distributed as dist
 import logging
 import re
 import pdb
@@ -30,16 +31,14 @@ class MultiTaskDataset(Dataset):
         parser.add_argument("--sequential_order", type=str, default='original', help='The rank of user history during ')
         parser.add_argument("--collaborative_token_size", type=int, default=200, help='the number of tokens used for indexing')
         parser.add_argument("--collaborative_cluster", type=int, default=20, help='the number of clusters in each level for collaborative indexing.')
+        parser.add_argument("--collaborative_last_token", type=str, default='sequential', help='how to assign the last token to items within the same clusters, random or sequential')
+        parser.add_argument("--collaborative_float32", type=int, default=0, help='1 for use float32 during indexing, 0 for float64.')
         
         # arguments related to sequential task
         parser.add_argument("--max_his", type=int, default=-1, help='the max number of items in history sequence, -1 means no limit')
         parser.add_argument("--his_prefix", type=int, default=1, help='whether add prefix in history')
         parser.add_argument("--his_sep", type=str, default=' , ', help='The separator used for history')
         parser.add_argument("--skip_empty_his", type=int, default=1, help='whether include data with empty history.')
-        
-        # arguments related to direct task
-        parser.add_argument("--candidate_neg_num", type=int, default=100, help='the number of negative candidate itmes in direct task.')
-        parser.add_argument("--candidate_sep", type=str, default=', ', help='The separator used for candidate items')
         
         # arguments related for evaluation
         parser.add_argument("--valid_prompt", type=str, default='seen:0', help='The prompt used for evaluation, seen/unseen: id')
@@ -69,6 +68,8 @@ class MultiTaskDataset(Dataset):
         self.skip_empty_his = args.skip_empty_his
         self.collaborative_token_size = self.args.collaborative_token_size
         self.collaborative_cluster_num = self.args.collaborative_cluster
+        self.collaborative_last_token = self.args.collaborative_last_token
+        self.collaborative_float32 = self.args.collaborative_float32
         
         if self.rank == 0:
             logging.info(f"Generating data for {self.dataset} dataset")
@@ -87,33 +88,62 @@ class MultiTaskDataset(Dataset):
         if 'history' in self.info:
             self.max_his = args.max_his
             self.his_sep = args.his_sep
-        if 'candidate_items' in self.info:
-            self.candidate_neg_num = args.candidate_neg_num
-            self.candidate_sep = args.candidate_sep
         
         # load user sequence data
         self.user_sequence = utils.ReadLineFromFile(os.path.join(self.data_path, self.dataset, 'user_sequence.txt'))
         self.user_sequence_dict = indexing.construct_user_sequence_dict(self.user_sequence)
         
-        # apply indexing method
-        if self.item_indexing == 'sequential':
-            if self.rank == 0:
-                logging.info("Reindex data with sequential indexing method")
-            self.reindex_user_seq_dict, self.item_map = indexing.sequential_indexing(self.data_path, self.dataset, self.user_sequence_dict, args.sequential_order)
-        elif self.item_indexing == 'random':
-            if self.rank == 0:
-                logging.info("Reindex data with random indexing method")
-            self.reindex_user_seq_dict, self.item_map = indexing.random_indexing(self.data_path, self.dataset, self.user_sequence_dict)
-        elif self.item_indexing == 'collaborative':
-            if self.rank == 0:
-                logging.info(f"Reindex data with collaborative indexing method with token_size {self.collaborative_token_size} and {self.collaborative_cluster_num} cluster")
-            self.reindex_user_seq_dict, self.item_map = indexing.collaborative_indexing(self.data_path, self.dataset, self.user_sequence_dict, \
-                                                                                        self.collaborative_token_size, self.collaborative_cluster_num)
-            self.new_token = []
-            for idx in list(self.item_map.values()):
-                self.new_token += re.findall(r'\<.*?\>', idx)
+        # apply indexing method and avoid generate data multiple times
+        if args.distributed:
+            if self.item_indexing == 'sequential':
+                if self.rank == 0:
+                    logging.info("Reindex data with sequential indexing method")
+                    indexing.sequential_indexing(self.data_path, self.dataset, self.user_sequence_dict, args.sequential_order)
+                    dist.barrier()
+                else:
+                    dist.barrier()
+                self.reindex_user_seq_dict, self.item_map = indexing.sequential_indexing(self.data_path, self.dataset, self.user_sequence_dict, args.sequential_order)
+            elif self.item_indexing == 'random':
+                if self.rank == 0:
+                    logging.info("Reindex data with random indexing method")
+                    indexing.random_indexing(self.data_path, self.dataset, self.user_sequence_dict)
+                    dist.barrier()
+                else:
+                    dist.barrier()
+                self.reindex_user_seq_dict, self.item_map = indexing.random_indexing(self.data_path, self.dataset, self.user_sequence_dict)
+            elif self.item_indexing == 'collaborative':
+                if self.rank == 0:
+                    logging.info(f"Reindex data with collaborative indexing method with token_size {self.collaborative_token_size} and {self.collaborative_cluster_num} cluster")
+                    indexing.collaborative_indexing(self.data_path, self.dataset, self.user_sequence_dict, self.collaborative_token_size, \
+                                                    self.collaborative_cluster_num, self.collaborative_last_token, self.collaborative_float32)
+                    dist.barrier()
+                else:
+                    dist.barrier()
+                self.reindex_user_seq_dict, self.item_map = indexing.collaborative_indexing(self.data_path, self.dataset, self.user_sequence_dict, \
+                                                                                            self.collaborative_token_size, self.collaborative_cluster_num, \
+                                                                                            self.collaborative_last_token, self.collaborative_float32)
+                self.new_token = []
+                for idx in list(self.item_map.values()):
+                    self.new_token += re.findall(r'\<.*?\>', idx)
+            else:
+                raise NotImplementedError
         else:
-            raise NotImplementedError
+            if self.item_indexing == 'sequential':
+                logging.info("Reindex data with sequential indexing method")
+                self.reindex_user_seq_dict, self.item_map = indexing.sequential_indexing(self.data_path, self.dataset, self.user_sequence_dict, args.sequential_order)
+            elif self.item_indexing == 'random':
+                logging.info("Reindex data with random indexing method")
+                self.reindex_user_seq_dict, self.item_map = indexing.random_indexing(self.data_path, self.dataset, self.user_sequence_dict)
+            elif self.item_indexing == 'collaborative':
+                logging.info(f"Reindex data with collaborative indexing method with token_size {self.collaborative_token_size} and {self.collaborative_cluster_num} cluster")
+                self.reindex_user_seq_dict, self.item_map = indexing.collaborative_indexing(self.data_path, self.dataset, self.user_sequence_dict, \
+                                                                                            self.collaborative_token_size, self.collaborative_cluster_num, \
+                                                                                            self.collaborative_last_token, self.collaborative_sparse, self.collaborative_float32)
+                self.new_token = []
+                for idx in list(self.item_map.values()):
+                    self.new_token += re.findall(r'\<.*?\>', idx)
+            else:
+                raise NotImplementedError
             
             
         self.all_items = list(self.item_map.values())
@@ -136,11 +166,6 @@ class MultiTaskDataset(Dataset):
         else:
             raise NotImplementedError
             
-        # sample candidate items
-        if 'candidate_items' in self.info:
-            if self.rank == 0:
-                logging.info(f"Generating candidates for {self.mode} in {self.dataset} dataset")
-            self.generate_candidates()
             
         # get prompt related info, including numbers and index
         self.get_prompt_info()
@@ -258,53 +283,9 @@ class MultiTaskDataset(Dataset):
             data_samples.append(one_sample)
         return data_samples
     
-    def generate_candidates(self):
-        """
-        Generate candidate items for each data sample, the candidate items include the target item and negative items 
-        """
-        
-        for i in range(len(self.data_samples)):
-            row = self.data_samples[i]
-            user = row['user_id']
-            item = row['target']
-            i = 0
-            neg = []
-            while i < self.candidate_neg_num:
-                n = random.randint(0, len(self.all_items) - 1)
-                if self.all_items[n] not in self.positive[user]:
-                    neg.append(self.all_items[n])
-                    i += 1
-            neg.append(item)
-            random.shuffle(neg)
-            row['candidate_items'] = self.candidate_sep.join(neg)
-        return
         
     def __len__(self):
         return len(self.data['input'])
-    
-    # def identify_prompt(self, idx):
-    #     for i in range(len(self.tasks)):
-    #         if idx < self.task_index[i]:
-    #             if i == 0:
-    #                 intask_id = idx
-    #             else:
-    #                 intask_id = idx - self.task_index[i-1]
-    #             task = self.tasks[i]
-    #             task_id = i
-    #             break
-    #     if self.mode == 'train':
-    #         data_id = intask_id // self.task_prompt_num[task_id]
-    #         prompt_id = intask_id % self.task_prompt_num[task_id]
-    #         prompt = self.prompt[task]['seen'][str(prompt_id)]
-    #     if self.mode == 'validation':
-    #         data_id = intask_id
-    #         info = self.valid_prompt.split(':')
-    #         prompt = self.prompt[task][info[0]][info[1]]
-    #     if self.mode == 'test':
-    #         data_id = intask_id
-    #         info = self.test_prompt.split(':')
-    #         prompt = self.prompt[task][info[0]][info[1]]
-    #     return data_id, prompt
     
     
     def construct_sentence(self):

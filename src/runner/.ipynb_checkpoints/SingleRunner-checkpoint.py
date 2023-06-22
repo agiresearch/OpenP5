@@ -6,7 +6,7 @@ from utils import utils
 import utils.generation_trie as gt
 from data.TestDataset import TestDataset
 from torch.utils.data import DataLoader
-from processor.Collator import Collator
+from processor.Collator import Collator, TestCollator
 import time
 import pdb
 
@@ -34,6 +34,8 @@ class SingleRunner:
         parser.add_argument("--test_epoch", type=int, default=1, help='test once for how many epochs, 0 for no test during training.')
         parser.add_argument("--valid_select", type=int, default=0, help='use validation loss to select models')
         parser.add_argument("--test_before_train", type=int, default=1, help='whether test before training')
+        parser.add_argument("--test_filtered", type=int, default=0, help='whether filter out the items in the training data.')
+        parser.add_argument("--test_filtered_batch", type=int, default=1, help='whether testing with filtered data in batch.')
         
         return parser
     
@@ -49,6 +51,8 @@ class SingleRunner:
         self.test_epoch = self.args.test_epoch
         self.valid_select = self.args.valid_select
         self.test_before_train = self.args.test_before_train
+        self.test_filtered = self.args.test_filtered
+        self.test_filtered_batch = self.args.test_filtered_batch
         
         self.get_testloader()
         
@@ -218,22 +222,156 @@ class SingleRunner:
         self.testloaders = []
         datasets = self.args.datasets.split(',')
         tasks = self.args.tasks.split(',')
-        collator = Collator(self.tokenizer)
+        if self.test_filtered > 0:
+            collator = TestCollator(self.tokenizer)
+        else:
+            collator = Collator(self.tokenizer)
         for dataset in datasets:
             for task in tasks:
                 testdata = TestDataset(self.args, dataset, task)
                 testloader = DataLoader(dataset=testdata, batch_size=self.args.eval_batch_size, collate_fn=collator, shuffle=False)
                 self.testloaders.append(testloader)
+                
         
     def test(self, path=None):
         self.model.eval()
         if path:
             self.model.load_state_dict(torch.load(path, map_location=self.device))
         for loader in self.testloaders:
-            self.test_dataset_task(loader)
+            if self.test_filtered > 0:
+                if self.test_filtered_batch > 0:
+                    self.test_dataset_task_filtered_batch(loader)
+                else:
+                    assert self.args.eval_batch_size == 1
+                    self.test_dataset_task_filtered(loader)
+            else:
+                self.test_dataset_task(loader)
+            
+            
+    def test_dataset_task_filtered_batch(self, testloader):
+        logging.info(f'testing filtered {testloader.dataset.dataset} dataset on {testloader.dataset.task} task')
+        test_total = 0
+        with torch.no_grad():
+            candidates = testloader.dataset.all_items
+            candidate_trie = gt.Trie(
+                [
+                    [0] + self.tokenizer.encode(f"{testloader.dataset.dataset} item_{candidate}")
+                    for candidate in candidates
+                ]
+            )
+            prefix_allowed_tokens = gt.prefix_allowed_tokens_fn(candidate_trie)
+            
+            metrics_res = np.array([0.0] * len(self.metrics))
+            for batch in tqdm(testloader):
+                input_ids = batch[0].to(self.device)
+                attn = batch[1].to(self.device)
+                whole_input_ids = batch[2].to(self.device)
+                output_ids = batch[3].to(self.device)
+                output_attention = batch[4].to(self.device)
+                user_idx = batch[5].to(self.device)
                 
-        
-        
+                prediction = self.model.module.generate(
+                        input_ids=input_ids,
+                        attention_mask=attn,
+                        whole_word_ids=whole_input_ids,
+                        max_length=30,
+                        prefix_allowed_tokens_fn=prefix_allowed_tokens,
+                        num_beams=self.generate_num + testloader.dataset.max_positive,
+                        num_return_sequences=self.generate_num + testloader.dataset.max_positive,
+                        output_scores=True,
+                        return_dict_in_generate=True,
+                    )
+                
+                prediction_ids = prediction["sequences"]
+                prediction_scores = prediction["sequences_scores"]
+                
+                gold_sents = self.tokenizer.batch_decode(
+                    output_ids, skip_special_tokens=True
+                )
+                generated_sents = self.tokenizer.batch_decode(
+                    prediction_ids, skip_special_tokens=True
+                )
+                
+                rel_results = evaluate.rel_results_filtered(testloader.dataset.positive, testloader.dataset.id2user, user_idx, \
+                                                            self.generate_num+testloader.dataset.max_positive, \
+                                                            generated_sents, gold_sents, prediction_scores, self.generate_num)
+                
+                test_total += len(rel_results)
+                
+                metrics_res += evaluate.get_metrics_results(rel_results, self.metrics)
+                
+            metrics_res = torch.tensor(metrics_res).to(self.device)
+            test_total = torch.tensor(test_total).to(self.device)
+            
+            metrics_res /= test_total
+            
+            for i in range(len(self.metrics)):
+                logging.info(f'{self.metrics[i]}: {metrics_res[i]}')
+                
+    def test_dataset_task_filtered(self, testloader):
+        logging.info(f'testing filtered {testloader.dataset.dataset} dataset on {testloader.dataset.task} task')
+        test_total = 0
+        with torch.no_grad():
+            candidates = set(testloader.dataset.all_items)
+            
+            
+            metrics_res = np.array([0.0] * len(self.metrics))
+            for batch in tqdm(testloader):
+                input_ids = batch[0].to(self.device)
+                attn = batch[1].to(self.device)
+                whole_input_ids = batch[2].to(self.device)
+                output_ids = batch[3].to(self.device)
+                output_attention = batch[4].to(self.device)
+                user_idx = int(batch[5][0])
+                positive = testloader.dataset.positive[testloader.dataset.id2user[user_idx]]
+                
+                user_candidate = candidates - positive
+                
+                candidate_trie = gt.Trie(
+                [
+                    [0] + self.tokenizer.encode(f"{testloader.dataset.dataset} item_{candidate}")
+                    for candidate in user_candidate
+                ]
+                )
+                prefix_allowed_tokens = gt.prefix_allowed_tokens_fn(candidate_trie)
+                
+                prediction = self.model.module.generate(
+                        input_ids=input_ids,
+                        attention_mask=attn,
+                        whole_word_ids=whole_input_ids,
+                        max_length=30,
+                        prefix_allowed_tokens_fn=prefix_allowed_tokens,
+                        num_beams=self.generate_num,
+                        num_return_sequences=self.generate_num,
+                        output_scores=True,
+                        return_dict_in_generate=True,
+                    )
+                
+                prediction_ids = prediction["sequences"]
+                prediction_scores = prediction["sequences_scores"]
+                
+                gold_sents = self.tokenizer.batch_decode(
+                    output_ids, skip_special_tokens=True
+                )
+                generated_sents = self.tokenizer.batch_decode(
+                    prediction_ids, skip_special_tokens=True
+                )
+                
+                rel_results = evaluate.rel_results(generated_sents, gold_sents, prediction_scores, self.generate_num)
+                
+                test_total += len(rel_results)
+                
+                metrics_res += evaluate.get_metrics_results(rel_results, self.metrics)
+                
+            metrics_res = torch.tensor(metrics_res).to(self.device)
+            test_total = torch.tensor(test_total).to(self.device)
+            
+            metrics_res /= test_total
+            
+            
+            for i in range(len(self.metrics)):
+                logging.info(f'{self.metrics[i]}: {metrics_res[i]}')
+
     def test_dataset_task(self, testloader):
         logging.info(f'testing {testloader.dataset.dataset} dataset on {testloader.dataset.task} task')
         test_total = 0
@@ -259,7 +397,7 @@ class SingleRunner:
                         input_ids=input_ids,
                         attention_mask=attn,
                         whole_word_ids=whole_input_ids,
-                        max_length=8,
+                        max_length=30,
                         prefix_allowed_tokens_fn=prefix_allowed_tokens,
                         num_beams=self.generate_num,
                         num_return_sequences=self.generate_num,
@@ -285,14 +423,10 @@ class SingleRunner:
                 
                 metrics_res += evaluate.get_metrics_results(rel_results, self.metrics)
                 
-            dist.barrier()
             metrics_res = torch.tensor(metrics_res).to(self.device)
             test_total = torch.tensor(test_total).to(self.device)
-            dist.all_reduce(metrics_res, op=dist.ReduceOp.SUM)
-            dist.all_reduce(test_total, op=dist.ReduceOp.SUM)
             
             metrics_res /= test_total
             
-            if self.rank == 0:
-                for i in range(len(self.metrics)):
-                    logging.info(f'{self.metrics[i]}: {metrics_res[i]}')
+            for i in range(len(self.metrics)):
+                logging.info(f'{self.metrics[i]}: {metrics_res[i]}')

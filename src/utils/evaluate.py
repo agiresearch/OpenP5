@@ -3,7 +3,36 @@ import math
 import random
 
 
-
+def rel_results_filtered(user_positive, id2user, user_idx, return_num, predictions, targets, scores, k):
+    results = []
+    batch_length = len(targets)
+    for b in range(batch_length):
+        uidx = user_idx[b]
+        user_id = id2user[uidx]
+        positive = user_positive[user_id]
+        one_batch_sequence = predictions[
+            b * return_num : (b + 1) * return_num
+        ]
+        one_batch_score = scores[
+            b * return_num : (b + 1) * return_num
+        ]
+        pairs = [(a, b) for a, b in zip(one_batch_sequence, one_batch_score)]
+        sorted_pairs = sorted(pairs, key=lambda x: x[1], reverse=True)
+        gt = targets[b]
+        one_results = []
+        for sorted_pred in sorted_pairs:
+            if sorted_pred[0] not in positive:
+                if sorted_pred[0] == gt:
+                    one_results.append(1)
+                else:
+                    one_results.append(0)
+                if len(one_results) >= k:
+                    break
+            else:
+                continue
+        
+        results.append(one_results)
+    return results
 
 def rel_results(predictions, targets, scores, k):
     results = []

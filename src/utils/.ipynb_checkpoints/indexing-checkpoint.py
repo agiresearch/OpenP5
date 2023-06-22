@@ -5,6 +5,7 @@ from sklearn.cluster import SpectralClustering
 from utils import utils
 from collections import defaultdict
 import os
+from scipy.sparse import csr_matrix
 import pdb
 
 def sequential_indexing(data_path, dataset, user_sequence_dict, order):
@@ -108,13 +109,13 @@ def random_indexing(data_path, dataset, user_sequence_dict):
     utils.WriteDictToFile(reindex_sequence_file, reindex_user_sequence_dict)
     return reindex_user_sequence_dict, item_map
 
-def collaborative_indexing(data_path, dataset, user_sequence_dict, token_size, cluster_num):
+def collaborative_indexing(data_path, dataset, user_sequence_dict, token_size, cluster_num, last_token, float32):
     """
     Use collaborative indexing method to index the given user seuqnece dict.
     """
     user_index_file = os.path.join(data_path, dataset, 'user_indexing.txt')
-    item_index_file = os.path.join(data_path, dataset, f'item_collaborative_indexing_{token_size}_{cluster_num}.txt')
-    reindex_sequence_file = os.path.join(data_path, dataset, f'user_sequence_collaborative_indexing_{token_size}_{cluster_num}.txt')
+    item_index_file = os.path.join(data_path, dataset, f'item_collaborative_indexing_{token_size}_{cluster_num}_{last_token}.txt')
+    reindex_sequence_file = os.path.join(data_path, dataset, f'user_sequence_collaborative_indexing_{token_size}_{cluster_num}_{last_token}.txt')
     
     if os.path.exists(reindex_sequence_file):
         user_sequence = utils.ReadLineFromFile(reindex_sequence_file)
@@ -138,16 +139,14 @@ def collaborative_indexing(data_path, dataset, user_sequence_dict, token_size, c
         item_info = utils.ReadLineFromFile(item_index_file)
         item_map = get_dict_from_lines(item_info)
     else:
-        item_map = generate_collaborative_id(user_sequence_dict, token_size, cluster_num)
+        item_map = generate_collaborative_id(user_sequence_dict, token_size, cluster_num, last_token, float32)
         utils.WriteDictToFile(item_index_file, item_map)
         
     reindex_user_sequence_dict = reindex(user_sequence_dict, user_map, item_map)
     utils.WriteDictToFile(reindex_sequence_file, reindex_user_sequence_dict)
     return reindex_user_sequence_dict, item_map
         
-    
-    
-def generate_collaborative_id(user_sequence_dict, token_size, cluster_num):
+def generate_collaborative_id(user_sequence_dict, token_size, cluster_num, last_token, float32):
     """
     Generate collaborative index for items.
     """
@@ -167,7 +166,10 @@ def generate_collaborative_id(user_sequence_dict, token_size, cluster_num):
         
     
     # calculate the co-occurrence of items in the training data as an adjacency matrix
-    adj_matrix = np.zeros((len(item2id), len(item2id)))
+    if float32 > 0:
+        adj_matrix = np.zeros((len(item2id), len(item2id)), dtype=np.float32)
+    else:
+        adj_matrix = np.zeros((len(item2id), len(item2id)))
     for user in user_sequence_dict:
         interactions = user_sequence_dict[user][:-2]
         for pairs in combinations(interactions, 2):
@@ -207,13 +209,20 @@ def generate_collaborative_id(user_sequence_dict, token_size, cluster_num):
         # if current group is small enough, add the last token to item indexing
         if len(group_items) <= token_size:
             item_list = [items[0] for items in group_items]
-            item_map = add_last_token_to_indexing(item_map, item_list, token_size)
+            if last_token == 'sequential':
+                item_map = add_last_token_to_indexing_sequential(item_map, item_list, token_size)
+            elif last_token == 'random':
+                item_map = add_last_token_to_indexing_random(item_map, item_list, token_size)
         else:
             # calculate the adjacency matrix for current group
-            sub_adj_matrix = np.zeros((len(group_items), len(group_items)))
+            if float32 > 0:
+                sub_adj_matrix = np.zeros((len(group_items), len(group_items)), dtype=np.float32)
+            else:
+                sub_adj_matrix = np.zeros((len(group_items), len(group_items)))
             for i in range(len(group_items)):
                 for j in range(i+1, len(group_items)):
                     sub_adj_matrix[i][j] = adj_matrix[group_items[i][1]][group_items[j][1]]
+                    sub_adj_matrix[j][i] = adj_matrix[group_items[j][1]][group_items[i][1]]
                     
             # get the clustering results for current group        
             clustering = SpectralClustering(
@@ -239,7 +248,10 @@ def generate_collaborative_id(user_sequence_dict, token_size, cluster_num):
     # if some items are not in the training data, assign an index for them
     remaining_items = list(all_items - train_items)
     if len(remaining_items) > 0:
-        add_last_token_to_indexing(item_map, remaining_items, token_size)
+        if last_token == 'sequential':
+            item_map = add_last_token_to_indexing_sequential(item_map, remaining_items, token_size)
+        elif last_token == 'random':
+            item_map = add_last_token_to_indexing_random(item_map, remaining_items, token_size)
                 
     return item_map
                 
@@ -255,13 +267,21 @@ def add_token_to_indexing(item_map, grouping, index_now, token_size):
         index_now += 1
     return item_map, index_now
 
-def add_last_token_to_indexing(item_map, item_list, token_size):
+def add_last_token_to_indexing_random(item_map, item_list, token_size):
     last_tokens = random.sample([i for i in range(token_size)], len(item_list))
     for i in range(len(item_list)):
         item = item_list[i]
         if item not in item_map:
             item_map[item] = ''
         item_map[item] += f'<CI{last_tokens[i]}>'
+    return item_map
+
+def add_last_token_to_indexing_sequential(item_map, item_list, token_size):
+    for i in range(len(item_list)):
+        item = item_list[i]
+        if item not in item_map:
+            item_map[item] = ''
+        item_map[item] += f'<CI{i}>'
     return item_map
     
     

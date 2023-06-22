@@ -9,7 +9,7 @@ import torch.multiprocessing as mp
 from data.MultiTaskDataset import MultiTaskDataset
 from runner.SingleRunner import SingleRunner
 from runner.DistributedRunner import DistributedRunner
-from processor.Collator import Collator
+from processor.Collator import Collator, TestCollator
 from processor.SingleMultiDataTaskSampler import SingleMultiDataTaskSampler
 from processor.DistMultiDataTaskSampler import DistMultiDataTaskSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -32,15 +32,21 @@ def get_dataset(args):
     for data in datasets:
         TrainDataset = MultiTaskDataset(args, data, 'train')
         train_all_datasets.append(TrainDataset)
-        ValidDataset = MultiTaskDataset(args, data, 'validation')
-        valid_all_datasets.append(ValidDataset)
+        if args.valid_select > 0:
+            ValidDataset = MultiTaskDataset(args, data, 'validation')
+            valid_all_datasets.append(ValidDataset)
         
     TrainSet = ConcatDataset(train_all_datasets)
-    ValidSet = ConcatDataset(valid_all_datasets)
+    if args.valid_select > 0:
+        ValidSet = ConcatDataset(valid_all_datasets)
+    else:
+        ValidSet = None
     
     return TrainSet, ValidSet
 
 def get_loader(args, tokenizer, TrainSet, ValidSet, rank=0):
+    
+    # generate training validation loader.
     ngpus_per_node = torch.cuda.device_count()
     if ngpus_per_node == 1:
         args.distributed = 0
@@ -48,15 +54,20 @@ def get_loader(args, tokenizer, TrainSet, ValidSet, rank=0):
         train_sampler = DistMultiDataTaskSampler(TrainSet, args.batch_size, args.world_size, rank, args.seed, shuffle=True) if args.distributed else SingleMultiDataTaskSampler(TrainSet, args.batch_size, args.seed, shuffle=True)
     else:
         train_sampler = DistributedSampler(TrainSet) if args.distributed else None
-    valid_sampler = DistributedSampler(ValidSet) if args.distributed else None
+    if args.valid_select > 0:
+        valid_sampler = DistributedSampler(ValidSet) if args.distributed else None
     
     collator = Collator(tokenizer)
     train_loader = DataLoader(dataset=TrainSet, sampler=train_sampler, batch_size=args.batch_size, collate_fn=collator, shuffle=False)
-    valid_loader = DataLoader(dataset=ValidSet, sampler=valid_sampler, batch_size=args.batch_size, collate_fn=collator, shuffle=False)
+    if args.valid_select > 0:
+        valid_loader = DataLoader(dataset=ValidSet, sampler=valid_sampler, batch_size=args.batch_size, collate_fn=collator, shuffle=False)
+    else:
+        valid_loader = None
     
     return train_loader, valid_loader
 
 def single_main():
+    # running on single gpu.
     
     # init args
     parser = argparse.ArgumentParser(description='OpenP5')
@@ -73,16 +84,17 @@ def single_main():
     
     args.rank = 0
     
-    # device = torch.device("cuda", int(args.gpu.split(',')[0]))
-    device = "cuda:0"
+    device = torch.device("cuda", int(args.gpu.split(',')[0]))
+    
     
     logging.info(vars(args))
     
     tokenizer = AutoTokenizer.from_pretrained(args.backbone)
     
-    # init dataset
+    # init dataset and dataloader
     TrainSet, ValidSet = get_dataset(args)
-    train_loader, valid_loader = get_loader(args, tokenizer, TrainSet, TestSet)
+    
+    train_loader, valid_loader = get_loader(args, tokenizer, TrainSet, ValidSet)
     
     if 't5' in args.backbone:
         config = T5Config.from_pretrained(args.backbone)
@@ -116,7 +128,6 @@ def single_main():
     runner.test(args.model_path)
     
     
-#     pdb.set_trace()
     
 def distributed_launch():
     parser = argparse.ArgumentParser(description='OpenP5')
@@ -138,7 +149,7 @@ def distributed_launch():
     
 def distributed_main(local_rank, args):
     
-    
+    # distributed learning
     args.rank = local_rank
     utils.set_seed(args.seed)
     os.environ['MASTER_ADDR'] = args.master_addr
@@ -174,6 +185,8 @@ def distributed_main(local_rank, args):
     model.to(device)
     
     
+    
+        
     if args.item_indexing == 'collaborative':
         for ds in train_loader.dataset.datasets:
             tokenizer.add_tokens(ds.new_token)
@@ -189,7 +202,7 @@ def distributed_main(local_rank, args):
             logging.info(f"Load model from {args.model_path}")
         model = utils.load_model(model, args.model_path, args, loc=device)
         model.to(device)
-    
+        
     runner = DistributedRunner(model, tokenizer, train_loader, valid_loader, device, args, local_rank)
     
     if args.train:

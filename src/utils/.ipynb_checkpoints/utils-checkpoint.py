@@ -12,6 +12,8 @@ import torch
 def parse_global_args(parser):
     parser.add_argument("--seed", type=int, default=2023, help="Random seed")
     parser.add_argument("--model_dir", type=str, default='../model', help='The model directory')
+    parser.add_argument("--checkpoint_dir", type=str, default='../checkpoint', help='The checkpoint directory')
+    parser.add_argument("--model_name", type=str, default='model.pt', help='The model name')
     parser.add_argument("--log_dir", type=str, default='../log', help='The log directory')
     parser.add_argument("--distributed", type=int, default=1, help='use distributed data parallel or not.')
     parser.add_argument("--gpu", type=str, default='0,1,2,3', help='gpu ids, if not distributed, only use the first one.')
@@ -75,10 +77,14 @@ def get_init_paras_dict(class_name, paras_dict):
 
 def setup_logging(args):
     args.log_name = log_name(args)
-    folder = os.path.join(args.log_dir, args.datasets)
+    if len(args.datasets.split(',')) > 1:
+        folder_name = 'SP5'
+    else:
+        folder_name = args.datasets
+    folder = os.path.join(args.log_dir, folder_name)
     if not os.path.exists(folder):
         os.makedirs(folder)
-    log_file = os.path.join(args.log_dir, args.datasets, args.log_name + '.log')
+    log_file = os.path.join(args.log_dir, folder_name, args.log_name + '.log')
     
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
@@ -89,14 +95,25 @@ def setup_logging(args):
     
 
 def log_name(args):
-    params = [str(args.distributed), str(args.sample_prompt), str(args.his_prefix), str(args.skip_empty_his), str(args.max_his), str(args.master_port), args.datasets, args.tasks, args.backbone, args.item_indexing, str(args.lr), str(args.epochs), str(args.batch_size), args.sample_num, args.prompt_file[3:-4]]
+    if len(args.datasets.split(',')) > 1:
+        folder_name = 'SP5'
+    else:
+        folder_name = args.datasets
+    params = [str(args.distributed), str(args.sample_prompt), str(args.his_prefix), str(args.skip_empty_his), str(args.max_his), str(args.master_port), folder_name, args.tasks, args.backbone, args.item_indexing, str(args.lr), str(args.epochs), str(args.batch_size), args.sample_num, args.prompt_file[3:-4]]
     return '_'.join(params)
 
 def setup_model_path(args):
-    model_path = os.path.join(args.model_dir, args.datasets)
-    if not os.path.exists(model_path):
-        os.makedirs(model_path)
-    args.model_path = os.path.join(model_path, args.log_name+'.pt')
+    if len(args.datasets.split(',')) > 1:
+        folder_name = 'SP5'
+    else:
+        folder_name = args.datasets
+    if args.model_name == 'model.pt':
+        model_path = os.path.join(args.model_dir, folder_name)
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+        args.model_path = os.path.join(model_path, args.log_name+'.pt')
+    else:
+        args.model_path = os.path.join(args.checkpoint_dir, args.model_name)
     return
     
 def save_model(mode, path):
