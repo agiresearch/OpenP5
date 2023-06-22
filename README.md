@@ -19,7 +19,8 @@ The statistics of the selected ten datasets can be found below:
 | \#Items | 3,416 | 112,394 | 3,646 | 12,101 | 1,349 |
 |\#Interactions| 999,611 | 4,250,483 | 52,551 | 198,502 | 99,287 |
 | Sparsity | 95.16\% | 99.99\% | 98.68\% | 99.93\% | 92.20\% |
-**| Datasets | Clothing | CDs | Movies | Taobao | Electronics|**
+| Datasets | Clothing | CDs | Movies | Taobao | Electronics|
+|:-:|:-:|:-:|:-:|:-:|:-:|
 | \#Users | 39,387 | 75,258 | 123,960 | 6,104 | 192,403 | 
 | \#Items | 23,033 | 64,443 | 50,052 | 4,192 | 63,001 |
 |\#Interactions| 278,677 | 1,697,533 | 1,697,533 | 46,337 | 1,689,188 |
