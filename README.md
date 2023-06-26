@@ -54,12 +54,18 @@ sh ML1M_random.sh
 
 ## Citation
 
-Please cite the following paper corresponding to the repository:
+Please cite the following papers corresponding to the repository:
 ```
 @article{xu2023openp5,
   title={OpenP5: Benchmarking Foundation Models for Recommendation},
   author={Shuyuan Xu and Wenyue Hua and Yongfeng Zhang},
-  journal={arXiv preprint arXiv:2306.11134},
+  journal={arXiv:2306.11134},
+  year={2023}
+}
+@article{hua2023index,
+  title={How to Index Item IDs for Recommendation Foundation Models},
+  author={Hua, Wenyue and Xu, Shuyuan and Ge, Yingqiang and Zhang, Yongfeng},
+  journal={arXiv:2305.06569},
   year={2023}
 }
 ```
