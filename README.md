@@ -37,7 +37,7 @@ The training command can be found in `./command` folder. Run the command such as
 
 ```
 cd command
-sh ML1M_collaborative.sh
+sh ML1M_random.sh
 ```
 
 ## Checkpoint
@@ -48,7 +48,7 @@ The evaluation command can be found in `./test_command folder`. Run the command 
 
 ```
 cd ./test_command
-sh ML1M_collaborative.sh
+sh ML1M_random.sh
 ```
 
 
