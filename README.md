@@ -5,6 +5,9 @@
 This repo presents OpenP5, an open-source library for benchmarking foundation models for recommendation under the Pre-train, Personalized Prompt and Predict Paradigm (P5).  
 > Paper link: [https://arxiv.org/pdf/2203.13366.pdf](https://arxiv.org/pdf/2306.11134.pdf)
 
+A relevant repo regarding item indexing is available here (How to Index Item IDs for Recommendation Foundation Models):
+> GitHub link: [https://github.com/Wenyueh/LLMforRS_item_representation](https://github.com/Wenyueh/LLMforRS_item_representation)
+
 ## Environment
 
 Environment requirements can be found in `./environment.txt`
