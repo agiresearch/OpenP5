@@ -66,7 +66,7 @@ class SingleRunner:
     def train(self):
         self.model.zero_grad()
         train_losses = []
-        eval_losses = []
+        valid_losses = []
         best_epoch = -1
         
         if self.test_before_train > 0:
