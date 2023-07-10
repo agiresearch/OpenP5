@@ -116,7 +116,7 @@ def setup_model_path(args):
         args.model_path = os.path.join(args.checkpoint_dir, args.model_name)
     return
     
-def save_model(mode, path):
+def save_model(model, path):
     torch.save(model.state_dict(), path)
     return
     
