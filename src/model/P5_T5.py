@@ -204,7 +204,7 @@ class JointEncoder(T5Stack):
         )
 
 
-class P5(T5ForConditionalGeneration):
+class P5_T5(T5ForConditionalGeneration):
     _keys_to_ignore_on_load_missing = [
         r"encoder\.embed_tokens\.weight",
         r"decoder\.embed_tokens\.weight",
@@ -840,7 +840,7 @@ if __name__ == "__main__":
     print("finished loading data")
 
     config = T5Config.from_pretrained("t5-base")
-    model = P5(config).cuda()
+    model = P5_T5(config).cuda()
     print("finished building model")
 
     for batch in train_loader:
