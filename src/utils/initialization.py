@@ -12,7 +12,7 @@ import gzip
 import time
 
 
-def random_initialization(model, tokenizer):
+def random_initialization(model, tokenizer, backbone):
     ids = []
     for x in range(30000):
         tokenized_ids = tokenizer.encode(str(x))
@@ -23,8 +23,13 @@ def random_initialization(model, tokenizer):
         ids += tokenized_ids
     ids = list(set(ids))
     for index in ids:
-        model.shared.weight.data[index] = nn.init.normal_(
-            model.shared.weight.data[index], 0, 1.0
-        )
+        if 't5' in backbone:
+            model.shared.weight.data[index] = nn.init.normal_(
+                model.shared.weight.data[index], 0, 1.0
+            )
+        elif 'llama' in backbone.lower():
+            model.model.embed_tokens.weight.data[index] = nn.init.normal_(
+                model.model.embed_tokens.weight.data[index], 0, 1.0
+            )
 
     return model
