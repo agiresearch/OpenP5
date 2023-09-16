@@ -14,6 +14,7 @@ A relevant repo regarding how to create item ID for recommendation foundation mo
 ## News
 
 -**[2023.9.16]** OpenP5 now supports both T5 and LLaMA-2 backbone LLMs.
+
 -**[2023.6.10]** OpenP5 now supports 10 datasets and 3 item ID indexing methods for both sequential recommendation and straightforward recommendation tasks.
 
 ## Environment
