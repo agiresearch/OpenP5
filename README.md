@@ -1,8 +1,8 @@
-# OpenP5: Benchmarking Foundation Models for Recommendation
+# OpenP5: An open-source platform for LLM-based Recommendation development, finetuning, and evaluation
 
 ## Introduction
 
-This repo presents OpenP5, an open-source library for benchmarking foundation models for recommendation under the Pre-train, Personalized Prompt and Predict Paradigm (P5).  
+This repo presents OpenP5, an open-source platform for LLM-based Recommendation development, finetuning, and evaluation.  
 > Paper: OpenP5: Benchmarking Foundation Models for Recommendation <br>
 > Paper link: [https://arxiv.org/pdf/2203.13366.pdf](https://arxiv.org/pdf/2306.11134.pdf)
 
