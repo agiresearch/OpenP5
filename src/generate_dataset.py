@@ -79,7 +79,7 @@ def main(args):
         one_sample = training_data_samples[i]
         for task in tasks:
             datapoint = {}
-            datapoint['task'] = dataset + task
+            datapoint['task'] = args.dataset + task
             datapoint['data_id'] = i
             for pid in prompt[task]['seen']:
                 datapoint['instruction'] = prompt[task]['seen'][pid]['Input']

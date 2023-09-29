@@ -77,9 +77,8 @@ def main():
         raise NotImplementError
         
         
-    
-        
     datasets = args.datasets.split(',')
+    print("datasets: ", datasets)
     
     for dataset in datasets:
         train_data_file = os.path.join(args.data_path, dataset, f'{dataset}_{args.tasks}_{args.item_indexing}_train.json')
@@ -111,10 +110,12 @@ def main():
     
     def process_func(datapoint):
         if 't5' in args.backbone.lower():
+            print("---  T5 Model ---")
             encoding = tokenize(datapoint['input'], add_eos_token=True)
             labels = tokenize(datapoint['output'], add_eos_token=True)
             encoding['labels'] = labels['input_ids']
         elif 'llama' in args.backbone.lower():
+            print("--- LLAMA Model ---")
             user_prompt = generate_prompt({**datapoint, "output": ""})
             encoding_input = tokenize(user_prompt, add_eos_token=False)
             input_len = len(encoding_input["input_ids"])
