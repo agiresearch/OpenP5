@@ -1,5 +1,62 @@
 # OpenP5: An Open-source Platform for Developing, Fine-tuning, and Evaluating LLM-based Recommenders
 
+____________
+
+# Suzumura Lab Documenation
+
+This is a fork from the original project of OpenP5. The idea is to conduct experiments and code improvements from their code.
+
+## Installation Steps
+If you're using python virtual environment, make sure to create a venv folder with python `3.9.7` which was the version used to execute the scripts.
+
+```
+python -m venv venv
+source venv/bin/activate
+```
+
+Afterwards, run the following commands to install python packages:
+
+```
+pip install -U pip
+pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio===0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+pip install transformers==4.33.3
+pip install scikit-learn==1.3.1
+pip install -r requirements.txt
+```
+
+## Execution
+
+Before training the models it is necessary to execute some scripts to generate the training files as shown below:
+
+```
+cd src/
+python generate_dataset.py
+```
+
+Please note that the script `generate_dataset.py` has several parameters which can be configured depending on what is desired. For a first step let's use the default arguments provided.
+
+The same will be done for the the script `generate_dataset_eval.py`, thus:
+
+```
+ python generate_dataset_eval.py
+```
+
+After the execution of the above scripts, the files `Beauty_sequential,straightforward_sequential_train.json` and `Beauty_sequential,straightforward_sequential_validation_seen:0.json` will be created under the folder `data/Beauty/`
+
+In order to generate the training and validation files it is necessary to provide the `dataset` parameter to the scripts. For the `Electronics` dataset for example it follows:
+
+```
+python generate_dataset.py --dataset Electronics
+python generate_dataset_eval.py --dataset Electronics
+```
+
+Aftewards, it is necessary to execute the file `train.py` as shown below:
+
+```
+python train.py
+```
+
+# Original Documentation
 ## Introduction
 
 This repo presents OpenP5, an open-source platform for LLM-based Recommendation development, finetuning, and evaluation.  
