@@ -110,12 +110,10 @@ def main():
     
     def process_func(datapoint):
         if 't5' in args.backbone.lower():
-            print("---  T5 Model ---")
             encoding = tokenize(datapoint['input'], add_eos_token=True)
             labels = tokenize(datapoint['output'], add_eos_token=True)
             encoding['labels'] = labels['input_ids']
         elif 'llama' in args.backbone.lower():
-            print("--- LLAMA Model ---")
             user_prompt = generate_prompt({**datapoint, "output": ""})
             encoding_input = tokenize(user_prompt, add_eos_token=False)
             input_len = len(encoding_input["input_ids"])
@@ -130,8 +128,11 @@ def main():
         return encoding
         # return {**datapoint, **encoding}
     
-    TrainSet = train_data['train'].shuffle().map(process_func, batched=True)
-    ValidSet = valid_data['train'].shuffle().map(process_func, batched=True)
+    # TrainSet = train_data['train'].shuffle().map(process_func, batched=True)
+    TrainSet = train_data['train'].shuffle().map(process_func)
+
+    # ValidSet = valid_data['train'].shuffle().map(process_func, batched=True)
+    ValidSet = valid_data['train'].shuffle().map(process_func)
         
     # add token and resize embedding for collaborative indexing
     if args.item_indexing == 'collaborative':
@@ -207,8 +208,10 @@ def main():
         ),
     )
     
+    print("--- Initializing training ---")
     trainer.train()
     
+    print("--- Saving pretrained model ---")
     model.save_pretrained(output_dir)
     tokenizer.save_pretrained(output_dir)
     
