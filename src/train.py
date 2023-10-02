@@ -129,8 +129,8 @@ def main():
         return encoding
         # return {**datapoint, **encoding}
     
-    TrainSet = train_data['train'].shuffle().map(process_func, batched=True)
-    ValidSet = valid_data['train'].shuffle().map(process_func, batched=True)
+    TrainSet = train_data['train'].shuffle().map(process_func, batched=False)
+    ValidSet = valid_data['train'].shuffle().map(process_func, batched=False)
         
     # add token and resize embedding for collaborative indexing
     if args.item_indexing == 'collaborative':
