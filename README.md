@@ -66,7 +66,6 @@ sh ML1M_random.sh
 
 ## Citation
 
-Please cite the following papers corresponding to the repository:
 ```
 @article{xu2023openp5,
   title={OpenP5: Benchmarking Foundation Models for Recommendation},
