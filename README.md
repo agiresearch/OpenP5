@@ -1,4 +1,4 @@
-# OpenP5: An Open-source Platform for Developing, Fine-tuning, and Evaluating LLM-based Recommenders
+# OpenP5: An Open-Source Platform for Developing, Training, and Evaluating LLM-based Recommender Systems
 
 ## Introduction
 
