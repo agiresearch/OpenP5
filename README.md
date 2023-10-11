@@ -9,7 +9,7 @@ This repo presents OpenP5, an open-source library for benchmarking foundation mo
 A relevant repo regarding how to create item ID for recommendation foundation models is available here:
 > Paper: How to Index Item IDs for Recommendation Foundation Models <br>
 > Paper link: https://arxiv.org/pdf/2305.06569.pdf <br>
-> GitHub link: [https://github.com/Wenyueh/LLMforRS_item_representation](https://github.com/Wenyueh/LLMforRS_item_representation)
+> GitHub link: [https://github.com/Wenyueh/LLM-RecSys-ID](https://github.com/Wenyueh/LLM-RecSys-ID)
 
 ## Environment
 
