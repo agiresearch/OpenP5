@@ -5,6 +5,7 @@ import torch
 import logging
 from torch.utils.data import ConcatDataset, DataLoader
 from datasets import load_dataset, concatenate_datasets
+from TaskAlternateTrainer import TaskAlternateTrainer
 import re
 
 from transformers import (
@@ -34,7 +35,6 @@ def main():
     
     # setup
     utils.setup_logging(args)
-    utils.setup_model_path(args)
     utils.set_seed(args.seed)
     
     # determine whether distributed
@@ -80,12 +80,23 @@ def main():
     
         
     datasets = args.datasets.split(',')
-    
-    for dataset in datasets:
+    if len(datasets) == 1:
+        dataset = datasets[0]
         train_data_file = os.path.join(args.data_path, dataset, f'{dataset}_{args.tasks}_{args.item_indexing}_train.json')
         valid_data_file = os.path.join(args.data_path, dataset, f'{dataset}_{args.tasks}_{args.item_indexing}_validation_{args.valid_prompt}.json')
         train_data = load_dataset("json", data_files=train_data_file, field='data')
         valid_data = load_dataset("json", data_files=valid_data_file, field='data')
+    else:
+        train_data_list, valid_data_list = [], []
+        for dataset in datasets:
+            train_data_file = os.path.join(args.data_path, dataset, f'{dataset}_{args.tasks}_{args.item_indexing}_train.json')
+            valid_data_file = os.path.join(args.data_path, dataset, f'{dataset}_{args.tasks}_{args.item_indexing}_validation_{args.valid_prompt}.json')
+            t_data = load_dataset("json", data_files=train_data_file, field='data')
+            v_data = load_dataset("json", data_files=valid_data_file, field='data')
+            train_data_list.append(t_data)
+            valid_data_list.append(v_data)
+        train_data = concatenate_datasets(train_data_list)
+        valid_data = concatenate_datasets(valid_data_list)
     
     
     def tokenize(prompt, add_eos_token=True):
@@ -113,7 +124,7 @@ def main():
         if 't5' in args.backbone.lower():
             encoding = tokenize(datapoint['input'], add_eos_token=True)
             labels = tokenize(datapoint['output'], add_eos_token=True)
-            encoding['labels'] = labels['input_ids']
+            encoding['labels'] = labels['input_ids'].copy()
         elif 'llama' in args.backbone.lower():
             user_prompt = generate_prompt({**datapoint, "output": ""})
             encoding_input = tokenize(user_prompt, add_eos_token=False)
@@ -126,12 +137,9 @@ def main():
                 + encoding["labels"][input_len:]
             )
 
-        return encoding
-        # return {**datapoint, **encoding}
+        # return encoding
+        return {**datapoint, **encoding}
     
-    TrainSet = train_data['train'].shuffle().map(process_func, batched=False)
-    ValidSet = valid_data['train'].shuffle().map(process_func, batched=False)
-        
     # add token and resize embedding for collaborative indexing
     if args.item_indexing == 'collaborative':
         new_tokens = []
@@ -143,6 +151,24 @@ def main():
                 new_token += re.findall(r'\<.*?\>', idx)
         tokenizer.add_tokens(ds.new_token)
         model.resize_token_embeddings(len(tokenizer))
+        
+    # no task alternating optimization if only one task in the data
+    if len(set(train_data['train']['task'])) == 1:
+        args.task_alternating_optim = 0
+    
+    if args.task_alternating_optim == 1:
+        TrainSet = dict()
+        for task in set(train_data['train']['task']):
+            TrainSet[task] = train_data['train'].filter(lambda example: example["task"]==task)
+        for task in TrainSet:
+            TrainSet[task] = TrainSet[task].shuffle().map(process_func, batched=False)
+        
+    else:
+        TrainSet = train_data['train'].shuffle().map(process_func, batched=False)
+
+    ValidSet = valid_data['train'].shuffle().map(process_func, batched=False)
+        
+    
     
     # randomly initialize number related tokens
     if args.random_initialize == 1:
@@ -176,35 +202,66 @@ def main():
         folder_name = args.datasets
     output_dir = os.path.join(args.model_dir, folder_name, args.item_indexing, args.backbone)
     
-    trainer = transformers.Trainer(
-        model=model,
-        train_dataset=TrainSet,
-        eval_dataset=ValidSet if args.valid_select > 0 else None,
-        args= transformers.TrainingArguments(
-            per_device_train_batch_size=args.batch_size,
-            gradient_accumulation_steps=args.gradient_accumulation_steps,
-            warmup_steps=args.warmup_steps,
-            num_train_epochs=args.epochs,
-            learning_rate=args.lr,
-            fp16=True,
-            logging_steps=args.logging_steps,
-            optim=args.optim,
-            evaluation_strategy="steps" if args.valid_select > 0 else "no",
-            save_strategy="steps",
-            eval_steps=200 if args.valid_select > 0 else None,
-            save_steps=200,
-            output_dir=output_dir,
-            save_total_limit=3,
-            load_best_model_at_end=True if args.valid_select > 0 else False,
-            ddp_find_unused_parameters=False if ddp else None,
-            group_by_length=False,
-            report_to="wandb" if use_wandb else None,
-            run_name=wandb_run_name if use_wandb else None,
-        ),
-        data_collator=transformers.DataCollatorForSeq2Seq(
-            tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
-        ),
-    )
+    if args.task_alternating_optim == 1:
+        trainer = TaskAlternateTrainer(model=model,
+            train_dataset=TrainSet,
+            eval_dataset=ValidSet if args.valid_select > 0 else None,
+            args= transformers.TrainingArguments(
+                per_device_train_batch_size=args.batch_size,
+                gradient_accumulation_steps=args.gradient_accumulation_steps,
+                warmup_steps=args.warmup_steps,
+                num_train_epochs=args.epochs,
+                learning_rate=args.lr,
+                fp16=True,
+                logging_dir=args.log_dir,
+                logging_steps=args.logging_steps,
+                optim=args.optim,
+                evaluation_strategy="steps" if args.valid_select > 0 else "no",
+                save_strategy="steps",
+                eval_steps=200 if args.valid_select > 0 else None,
+                save_steps=200,
+                output_dir=output_dir,
+                save_total_limit=3,
+                load_best_model_at_end=True if args.valid_select > 0 else False,
+                ddp_find_unused_parameters=False if ddp else None,
+                group_by_length=False,
+                report_to="wandb" if use_wandb else None,
+                run_name=wandb_run_name if use_wandb else None,
+            ),
+            data_collator=transformers.DataCollatorForSeq2Seq(
+                tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
+            ),
+        )
+    else:
+        trainer = transformers.Trainer(
+            model=model,
+            train_dataset=TrainSet,
+            eval_dataset=ValidSet if args.valid_select > 0 else None,
+            args= transformers.TrainingArguments(
+                per_device_train_batch_size=args.batch_size,
+                gradient_accumulation_steps=args.gradient_accumulation_steps,
+                warmup_steps=args.warmup_steps,
+                num_train_epochs=args.epochs,
+                learning_rate=args.lr,
+                fp16=True,
+                logging_steps=args.logging_steps,
+                optim=args.optim,
+                evaluation_strategy="steps" if args.valid_select > 0 else "no",
+                save_strategy="steps",
+                eval_steps=200 if args.valid_select > 0 else None,
+                save_steps=200,
+                output_dir=output_dir,
+                save_total_limit=3,
+                load_best_model_at_end=True if args.valid_select > 0 else False,
+                ddp_find_unused_parameters=False if ddp else None,
+                group_by_length=False,
+                report_to="wandb" if use_wandb else None,
+                run_name=wandb_run_name if use_wandb else None,
+            ),
+            data_collator=transformers.DataCollatorForSeq2Seq(
+                tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
+            ),
+        )
     
     trainer.train()
     
