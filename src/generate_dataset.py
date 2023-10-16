@@ -32,7 +32,7 @@ def main(args):
         print("Reindex data with random indexing method")
         reindex_user_seq_dict, item_map = indexing.random_indexing(args.data_path, args.dataset, user_sequence_dict)
     elif args.item_indexing == 'collaborative':
-        print(f"Reindex data with collaborative indexing method with token_size {args.collaborative_token_size} and {args.collaborative_cluster_num} cluster")
+        print(f"Reindex data with collaborative indexing method with token_size {args.collaborative_token_size} and {args.collaborative_cluster} cluster")
         reindex_user_seq_dict, item_map = indexing.collaborative_indexing(args.data_path, args.dataset, user_sequence_dict, \
                                                                                     args.collaborative_token_size, args.collaborative_cluster, \
                                                                                     args.collaborative_last_token, args.collaborative_float32)
