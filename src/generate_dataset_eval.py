@@ -50,12 +50,12 @@ def main(args):
     # Load data samples
     if args.mode == 'validation':
         data_samples = load_validation(args, reindex_user_seq_dict, info)
-        prompt_info = args.valid_prompt.split(':')
-        output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_validation_{args.valid_prompt}.json'
+        prompt_info = args.prompt.split(':')
+        output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_validation_{args.prompt}.json'
     elif args.mode == 'test':
         data_samples = load_test(args, reindex_user_seq_dict, info)
-        prompt_info = args.test_prompt.split(':')
-        output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_test_{args.test_prompt}.json'
+        prompt_info = args.prompt.split(':')
+        output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_test_{args.prompt}.json'
     else:
         raise NotImplementedError
     print(f'there are {len(data_samples)} samples in {args.mode} data.')
@@ -152,8 +152,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip_empty_his", type=int, default=1, help='whether include data with empty history.')
     
     parser.add_argument("--mode", type=str, default='validation', help='validation or test')
-    parser.add_argument("--valid_prompt", type=str, default='seen:0', help='The prompt used for evaluation, seen/unseen: id')
-    parser.add_argument("--test_prompt", type=str, default='seen:0', help='The prompt used for evaluation, seen/unseen: id')
+    parser.add_argument("--prompt", type=str, default='seen:0', help='The prompt used for evaluation, seen/unseen: id')
     
     args, extras = parser.parse_known_args()
     main(args)
