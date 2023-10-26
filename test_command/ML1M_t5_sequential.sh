@@ -1,2 +1,2 @@
-CUDA_VISIBLE_DEVICES=2 python ../src/recommendation.py --dataset ML1M --tasks sequential,straightforward --item_indexing sequential --backbone t5-small --checkpoint_path ../models/ML1M/sequential/t5-small --test_prompt seen:0
-CUDA_VISIBLE_DEVICES=2 python ../src/recommendation.py --dataset ML1M --tasks sequential,straightforward --item_indexing sequential --backbone t5-small --checkpoint_path ../models/ML1M/sequential/t5-small --test_prompt unseen:0
+CUDA_VISIBLE_DEVICES=2 python ../src/recommendation.py --dataset ML1M --tasks sequential,straightforward --item_indexing sequential --backbone t5-small --checkpoint_path ../model/ML1M/sequential/t5-small --test_prompt seen:0
+CUDA_VISIBLE_DEVICES=2 python ../src/recommendation.py --dataset ML1M --tasks sequential,straightforward --item_indexing sequential --backbone t5-small --checkpoint_path ../model/ML1M/sequential/t5-small --test_prompt unseen:0
