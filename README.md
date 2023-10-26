@@ -37,9 +37,6 @@ The statistics of the selected ten datasets can be found below:
 |\#Interactions| 278,677 | 1,697,533 | 1,697,533 | 46,337 | 1,689,188 |
 |Sparsity| 99.97\% | 99.96\% | 99.97\% | 99.82\% | 99.99\% |
 
-## More Results
-
-More results on various datasets can be found in `./OpenP5_more_results.pdf`
 
 ## Usage
 
@@ -55,18 +52,16 @@ The training command can be found in `./command` folder. Run the command such as
 
 ```
 cd command
-sh ML1M_random.sh
+sh ML1M_t5_sequential.sh
 ```
 
 ## Checkpoint
-
-Download the checkpoint from [Google Drive Link](https://drive.google.com/drive/folders/19v7vgNBkIRdBm4FwPgHHiRz6Dnom29aR?usp=sharing), and put them into `./checkpoint` folder.
 
 The evaluation command can be found in `./test_command folder`. Run the command such as 
 
 ```
 cd ./test_command
-sh ML1M_random.sh
+sh ML1M_t5_sequential.sh
 ```
 
 
