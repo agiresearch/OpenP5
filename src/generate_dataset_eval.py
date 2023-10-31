@@ -66,7 +66,7 @@ def main(args):
         one_sample = data_samples[i]
         for task in tasks:
             datapoint = {}
-            datapoint['task'] = dataset + task
+            datapoint['task'] = args.dataset + task
             datapoint['instruction'] = prompt[task][prompt_info[0]][prompt_info[1]]['Input']
             datapoint['input'] = prompt[task][prompt_info[0]][prompt_info[1]]['Input'].format(**one_sample)
             datapoint['output'] = prompt[task][prompt_info[0]][prompt_info[1]]['Output'].format(**one_sample)
