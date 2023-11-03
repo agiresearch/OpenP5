@@ -60,6 +60,7 @@ def parse_args(parser):
     parser.add_argument("--batch_size", type=int, default=32, help="batch size")
     parser.add_argument("--eval_batch_size", type=int, default=32, help="the batch size for evaluation")
     parser.add_argument("--group_task_in_batch", type=int, default=1, help='Whether group data for one task in the batch. If so, use customized sampler')
+    parser.add_argument("--task_alternating_optim", type=int, default=0, help='Whether use alternating optimizations')
     
     # arguments related to trainer
     parser.add_argument("--optim", type=str, default='adamw_torch', help='The name of the optimizer')
