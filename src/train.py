@@ -98,20 +98,23 @@ def main():
         train_data = concatenate_datasets(train_data_list)
         valid_data = concatenate_datasets(valid_data_list)
     
-    
     def tokenize(prompt, add_eos_token=True):
         # there's probably a way to do this with the tokenizer settings
         # but again, gotta move fast
         result = tokenizer(
             prompt, truncation=True, max_length=args.cutoff, padding=False, return_tensors=None,
         )
-        if (
-            result["input_ids"][-1] != tokenizer.eos_token_id
+        if (isinstance(result["input_ids"][-1], int) and result["input_ids"][-1] != tokenizer.eos_token_id
             and len(result["input_ids"]) < args.cutoff
             and add_eos_token
-        ):
+           ):
             result["input_ids"].append(tokenizer.eos_token_id)
             result["attention_mask"].append(1)
+        elif isinstance(result["input_ids"][-1], list) and add_eos_token:
+            for i in range(len(result['input_ids'])):
+                if result["input_ids"][i][-1] != tokenizer.eos_token_id and len(result["input_ids"][i]) < args.cutoff:
+                    result["input_ids"][i].append(tokenizer.eos_token_id)
+                    result["attention_mask"][i].append(1)
 
         result["labels"] = result["input_ids"].copy()
 
@@ -161,12 +164,12 @@ def main():
         for task in set(train_data['train']['task']):
             TrainSet[task] = train_data['train'].filter(lambda example: example["task"]==task)
         for task in TrainSet:
-            TrainSet[task] = TrainSet[task].shuffle().map(process_func, batched=False)
+            TrainSet[task] = TrainSet[task].shuffle().map(process_func, batched=True)
         
     else:
-        TrainSet = train_data['train'].shuffle().map(process_func, batched=False)
+        TrainSet = train_data['train'].shuffle().map(process_func, batched=True)
 
-    ValidSet = valid_data['train'].shuffle().map(process_func, batched=False)
+    ValidSet = valid_data['train'].shuffle().map(process_func, batched=True)
         
     
     
