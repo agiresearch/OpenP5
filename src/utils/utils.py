@@ -249,4 +249,3 @@ def check_task_prompt(prompt_templates, task_list):
     for task in task_list:
         assert task in prompt_templates, f"No prompt for {task} task"
         
-        
