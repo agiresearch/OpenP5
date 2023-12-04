@@ -119,9 +119,16 @@ def main():
         result["labels"] = result["input_ids"].copy()
 
         return result
-    
-    def generate_prompt(data_point):
-        return f'{data_point["input"]} {data_point["output"]}'
+    def generate_prompt(data_point, output=True):
+        if isinstance(data_point['input'], list):
+            if output:
+                return [f'{data_point["input"][i]} {data_point["output"][i]}' for i in range(len(data_point['input']))]
+            else:
+                return data_point["input"]
+        if output:
+            return f'{data_point["input"]} {data_point["output"]}'
+        else:
+            return data_point["input"]
     
     def process_func(datapoint):
         if 't5' in args.backbone.lower():
@@ -129,19 +136,29 @@ def main():
             labels = tokenize(datapoint['output'], add_eos_token=True)
             encoding['labels'] = labels['input_ids'].copy()
         elif 'llama' in args.backbone.lower():
-            user_prompt = generate_prompt({**datapoint, "output": ""})
+            user_prompt = generate_prompt(datapoint, output=False)
             encoding_input = tokenize(user_prompt, add_eos_token=False)
-            input_len = len(encoding_input["input_ids"])
+            if isinstance(user_prompt, list):
+                input_len = [len(encoding_input["input_ids"][i]) for i in range(len(encoding_input["input_ids"]))]
+            else:
+                input_len = len(encoding_input["input_ids"])
             full_prompt = generate_prompt(datapoint)
+            # print(full_prompt)
             encoding = tokenize(full_prompt)
-            
-            encoding["labels"] = (
-                [-100] * input_len
-                + encoding["labels"][input_len:]
-            )
+
+            if isinstance(user_prompt, list):
+                encoding["labels"] = [
+                    [-100] * input_len[i]
+                    + encoding["labels"][i][input_len[i]:] for i in range(len(encoding["labels"]))
+                ]
+            else:
+                encoding["labels"] = (
+                    [-100] * input_len
+                    + encoding["labels"][input_len:]
+                )
 
         # return encoding
-        return {**datapoint, **encoding}
+        return {**datapoint,**encoding}
     
     # add token and resize embedding for collaborative indexing
     if args.item_indexing == 'collaborative':
@@ -154,6 +171,11 @@ def main():
                 new_token += re.findall(r'\<.*?\>', idx)
         tokenizer.add_tokens(ds.new_token)
         model.resize_token_embeddings(len(tokenizer))
+
+    tokenizer.pad_token_id = (
+        0  # unk. we want this to be different from the eos token
+    )
+    tokenizer.padding_side = "left" 
         
     # no task alternating optimization if only one task in the data
     if len(set(train_data['train']['task'])) == 1:
@@ -193,10 +215,7 @@ def main():
         model = get_peft_model(model, config)
         model.print_trainable_parameters()
         
-    tokenizer.pad_token_id = (
-        0  # unk. we want this to be different from the eos token
-    )
-    tokenizer.padding_side = "left" 
+
     
     # decide output dir
     if len(args.datasets.split(',')) > 1:
