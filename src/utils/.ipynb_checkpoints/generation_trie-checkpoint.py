@@ -1,6 +1,5 @@
 from typing import Dict, List
 
-from transformers import T5Tokenizer, T5ForConditionalGeneration, AutoTokenizer
 import torch
 
 
@@ -108,47 +107,3 @@ def exact_match(predictions, targets, k):
 
     return correct
 
-
-if __name__ == "__main__":
-    tokenizer = AutoTokenizer.from_pretrained("t5-small")
-    model = T5ForConditionalGeneration.from_pretrained("t5-small")
-    candidates = [
-        "3560",
-        "5540",
-        "1825",
-        "1062",
-        "6880",
-        "1683",
-        "3632",
-        "9273",
-        "2345",
-        "1398",
-        "2000",
-        "5992",
-        "3754",
-        "3637",
-        "3272",
-        "1531",
-    ]
-    candidate_trie = Trie([[0] + tokenizer.encode("Beauty item {}".format(e)) for e in candidates])
-    print(candidate_trie.trie_dict)
-
-    input_s = [
-        "Here is the purchase history of Beauty user 1: Beauty item 1,2,3,4,5. I wonder what is the next recommended item for the user.",
-        "Here is the purchase history of Beauty user 3: Beauty item 27,52,97,2. I wonder what is the next recommended item for the user.",
-    ]
-    input_ids = tokenizer.batch_encode_plus(
-        input_s, padding="longest", return_tensors="pt"
-    )["input_ids"]
-
-    prefix_allowed_tokens = prefix_allowed_tokens_fn(candidate_trie)
-    output_ids = model.generate(
-        input_ids,
-        max_length=150,
-        prefix_allowed_tokens_fn=prefix_allowed_tokens,
-        num_beams=20,
-        num_return_sequences=10,
-    )
-
-    print(output_ids.size())
-    print(tokenizer.batch_decode(output_ids))

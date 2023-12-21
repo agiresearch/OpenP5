@@ -1,8 +1,8 @@
-# OpenP5: Benchmarking Foundation Models for Recommendation
+# OpenP5: An Open-Source Platform for Developing, Training, and Evaluating LLM-based Recommender Systems
 
 ## Introduction
 
-This repo presents OpenP5, an open-source library for benchmarking foundation models for recommendation under the Pre-train, Personalized Prompt and Predict Paradigm (P5).  
+This repo presents OpenP5, an open-source platform for LLM-based Recommendation development, finetuning, and evaluation.  
 > Paper: OpenP5: Benchmarking Foundation Models for Recommendation <br>
 > Paper link: [https://arxiv.org/pdf/2203.13366.pdf](https://arxiv.org/pdf/2306.11134.pdf)
 
@@ -10,6 +10,11 @@ A relevant repo regarding how to create item ID for recommendation foundation mo
 > Paper: How to Index Item IDs for Recommendation Foundation Models <br>
 > Paper link: https://arxiv.org/pdf/2305.06569.pdf <br>
 > GitHub link: [https://github.com/Wenyueh/LLM-RecSys-ID](https://github.com/Wenyueh/LLM-RecSys-ID)
+
+## News
+
+-**[2023.6.10]** OpenP5 now supports 10 datasets and 3 item ID indexing methods for both sequential recommendation and straightforward recommendation tasks.
+
 
 ## Environment
 
@@ -31,36 +36,36 @@ The statistics of the selected ten datasets can be found below:
 |\#Interactions| 278,677 | 1,697,533 | 1,697,533 | 46,337 | 1,689,188 |
 |Sparsity| 99.97\% | 99.96\% | 99.97\% | 99.82\% | 99.99\% |
 
-## More Results
-
-More results on various datasets can be found in `./OpenP5_more_results.pdf`
 
 ## Usage
 
 Download the data from [Google Drive link](https://drive.google.com/drive/folders/1W5i5ryetj_gkcOpG1aZfL5Y8Yk6RxwYE?usp=sharing), and put them into `./data` folder.
 
+Run the following command to generate all data
+
+```
+sh generate_dataset.sh
+```
+
 The training command can be found in `./command` folder. Run the command such as 
 
 ```
 cd command
-sh ML1M_random.sh
+sh ML1M_t5_sequential.sh
 ```
 
 ## Checkpoint
-
-Download the checkpoint from [Google Drive Link](https://drive.google.com/drive/folders/19v7vgNBkIRdBm4FwPgHHiRz6Dnom29aR?usp=sharing), and put them into `./checkpoint` folder.
 
 The evaluation command can be found in `./test_command folder`. Run the command such as 
 
 ```
 cd ./test_command
-sh ML1M_random.sh
+sh ML1M_t5_sequential.sh
 ```
 
 
 ## Citation
 
-Please cite the following papers corresponding to the repository:
 ```
 @article{xu2023openp5,
   title={OpenP5: Benchmarking Foundation Models for Recommendation},
@@ -71,7 +76,7 @@ Please cite the following papers corresponding to the repository:
 @article{hua2023index,
   title={How to Index Item IDs for Recommendation Foundation Models},
   author={Hua, Wenyue and Xu, Shuyuan and Ge, Yingqiang and Zhang, Yongfeng},
-  journal={arXiv:2305.06569},
+  journal={SIGIR-AP},
   year={2023}
 }
 ```
