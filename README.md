@@ -12,6 +12,7 @@ A relevant repo regarding how to create item ID for recommendation foundation mo
 > GitHub link: [https://github.com/Wenyueh/LLM-RecSys-ID](https://github.com/Wenyueh/LLM-RecSys-ID)
 
 ## News
+-**[2023.12.20]** We have made the first release of the project under the release-1.0 branch, which is also provided as the release-1.0 under the Release section of the project. This is a complete and readily executable branch that can help you to quickly get things running and do experiments for both T5 and LLaMA backbones. However, these two backbones are implemented as two seperate python files. Currently, we are further refactoring the code to make T5 and LLaMA backbones compatible in the same codebase structure, and we will make the second release once that is finished.
 
 -**[2023.9.16]** OpenP5 now supports both T5 and LLaMA-2 backbone LLMs.
 
