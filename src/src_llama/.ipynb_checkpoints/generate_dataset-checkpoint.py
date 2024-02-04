@@ -32,7 +32,7 @@ def main(args):
         print("Reindex data with random indexing method")
         reindex_user_seq_dict, item_map = indexing.random_indexing(args.data_path, args.dataset, user_sequence_dict)
     elif args.item_indexing == 'collaborative':
-        print(f"Reindex data with collaborative indexing method with token_size {args.collaborative_token_size} and {args.collaborative_cluster_num} cluster")
+        print(f"Reindex data with collaborative indexing method with token_size {args.collaborative_token_size} and {args.collaborative_cluster} cluster")
         reindex_user_seq_dict, item_map = indexing.collaborative_indexing(args.data_path, args.dataset, user_sequence_dict, \
                                                                                     args.collaborative_token_size, args.collaborative_cluster, \
                                                                                     args.collaborative_last_token, args.collaborative_float32)
@@ -72,14 +72,14 @@ def main(args):
                     one_sample['history'] = args.his_sep.join(history)
             training_data_samples.append(one_sample)
     print("load training data")
-    print(f'there are {len(training_data_samples)} samples in training data.')
+    print(f'there are {len(training_data_samples)} samples in {args.dataset} training data.')
 
     # construct sentences
     for i in range(len(training_data_samples)):
         one_sample = training_data_samples[i]
         for task in tasks:
             datapoint = {}
-            datapoint['task'] = dataset + task
+            datapoint['task'] = args.dataset + " " + task
             datapoint['data_id'] = i
             for pid in prompt[task]['seen']:
                 datapoint['instruction'] = prompt[task]['seen'][pid]['Input']
@@ -88,11 +88,14 @@ def main(args):
                 file_data['data'].append(datapoint.copy())
     
     print("data constructed")
-    print(f"there are {len(file_data['data'])} prompts in training data.")
+    print(f"there are {len(file_data['data'])} prompts in {args.dataset} training data.")
     
     
     # save the data to json file
-    output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_train.json'
+    if args.item_indexing == 'collaborative':
+        output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_{args.collaborative_token_size}_{args.collaborative_cluster}_{args.collaborative_last_token}_train.json'
+    else:
+        output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_train.json'
     
     with open(os.path.join(args.data_path, args.dataset, output_path), 'w') as openfile:
         json.dump(file_data, openfile)
@@ -113,7 +116,7 @@ if __name__ == "__main__":
     
     # arguments related to item indexing
     parser.add_argument("--sequential_order", type=str, default='original', help='The rank of user history during indexing')
-    parser.add_argument("--collaborative_token_size", type=int, default=200, help='the number of tokens used for indexing')
+    parser.add_argument("--collaborative_token_size", type=int, default=500, help='the number of tokens used for indexing')
     parser.add_argument("--collaborative_cluster", type=int, default=20, help='the number of clusters in each level for collaborative indexing.')
     parser.add_argument("--collaborative_last_token", type=str, default='sequential', help='how to assign the last token to items within the same clusters, random or sequential')
     parser.add_argument("--collaborative_float32", type=int, default=0, help='1 for use float32 during indexing, 0 for float64.')
