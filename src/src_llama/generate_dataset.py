@@ -92,7 +92,10 @@ def main(args):
     
     
     # save the data to json file
-    output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_train.json'
+    if args.item_indexing == 'collaborative':
+        output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_{args.collaborative_token_size}_{args.collaborative_cluster}_{args.collaborative_last_token}_train.json'
+    else:
+        output_path = f'{args.dataset}_{args.tasks}_{args.item_indexing}_train.json'
     
     with open(os.path.join(args.data_path, args.dataset, output_path), 'w') as openfile:
         json.dump(file_data, openfile)
