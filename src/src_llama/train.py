@@ -8,6 +8,8 @@ from datasets import load_dataset, concatenate_datasets
 from TaskAlternateTrainer import TaskAlternateTrainer
 import re
 import bitsandbytes as bnb
+from collections import defaultdict
+from tqdm import tqdm
 # import pdb
 
 
@@ -66,7 +68,7 @@ def main():
     if len(wandb_log_model) > 0:
         os.environ["WANDB_LOG_MODEL"] = wandb_log_model
         
-    hf_key = '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'
+    hf_key = '' # Add your huggingface token if necessary
     # load model, tokenizer
     if 'open' in args.backbone.lower():
         model = LlamaForCausalLM.from_pretrained(
@@ -106,6 +108,7 @@ def main():
     else:
         train_data_list, valid_data_list = [], []
         for dataset in datasets:
+            print(dataset)
             if args.item_indexing == 'collaborative':
                 train_data_file = os.path.join(args.data_path, dataset, f'{dataset}_{args.tasks}_{args.item_indexing}_{args.collaborative_token_size}_{args.collaborative_cluster}_{args.collaborative_last_token}_train.json')
                 valid_data_file = os.path.join(args.data_path, dataset, f'{dataset}_{args.tasks}_{args.item_indexing}_{args.collaborative_token_size}_{args.collaborative_cluster}_{args.collaborative_last_token}_validation_{args.valid_prompt}.json')
@@ -114,8 +117,8 @@ def main():
                 valid_data_file = os.path.join(args.data_path, dataset, f'{dataset}_{args.tasks}_{args.item_indexing}_validation_{args.valid_prompt}.json')
             t_data = load_dataset("json", data_files=train_data_file, field='data', cache_dir=args.cache_dir)
             v_data = load_dataset("json", data_files=valid_data_file, field='data', cache_dir=args.cache_dir)
-            train_data_list.append(t_data)
-            valid_data_list.append(v_data)
+            train_data_list.append(t_data['train'])
+            valid_data_list.append(v_data['train'])
         train_data = concatenate_datasets(train_data_list)
         valid_data = concatenate_datasets(valid_data_list)
     
@@ -154,7 +157,12 @@ def main():
             return f'{data_point["input"]} Response: '
     
     def process_func(datapoint):
-        if 'llama' in args.backbone.lower():
+        if 't5' in args.backbone.lower():
+            encoding = tokenize(datapoint['input'], add_eos_token=True)
+            labels = tokenize(datapoint['output'], add_eos_token=True)
+            encoding['labels'] = labels['input_ids'].copy()
+            encoding['output_attn'] = labels['attention_mask'].copy()
+        elif 'llama' in args.backbone.lower():
             user_prompt = generate_prompt(datapoint, output=False)
             # print(len(user_prompt))
             # print(user_prompt[:10])
@@ -199,23 +207,35 @@ def main():
     tokenizer.padding_side = "left" 
         
     # no task alternating optimization if only one task in the data
-    if len(set(train_data['train']['task'])) == 1:
+    if len(datasets) == 1 and len(set(train_data['train']['task'])) == 1:
         args.task_alternating_optim = 0
     
     if args.task_alternating_optim == 1:
         TrainSet = dict()
-        for task in set(train_data['train']['task']):
-            TrainSet[task] = train_data['train'].filter(lambda example: example["task"]==task)
+        if len(datasets) == 1:
+            for task in set(train_data['train']['task']):
+                TrainSet[task] = train_data['train'].filter(lambda example: example["task"]==task)
+        else:
+            task_idx = defaultdict(list)
+            task_list = train_data['task']
+            for idx, element in enumerate(tqdm(task_list)):
+                task_idx[element].append(idx)
+            for task in set(train_data['task']):
+                TrainSet[task] = train_data.select(task_idx[task])
         for task in TrainSet:
-            # TrainSet[task] = TrainSet[task].remove_columns(['task', 'instruction', 'data_id'])
             TrainSet[task] = TrainSet[task].shuffle().select(range(int(len(TrainSet[task]) * args.sample_ratio))).map(process_func, batched=True, batch_size=1000)
-        
     else:
-        # train_data['train'] = train_data['train'].remove_columns(['task', 'instruction', 'data_id'])
-        TrainSet = train_data['train'].shuffle().select(range(int(len(TrainSet[task]) * args.sample_ratio))).map(process_func, batched=True, batch_size=1000)
+        if len(datasets) == 1:
+            TrainSet = train_data['train'].shuffle().select(range(int(len(TrainSet[task]) * args.sample_ratio))).map(process_func, batched=True, batch_size=1000)
+        else:
+            TrainSet = train_data.shuffle().select(range(int(len(TrainSet[task]) * args.sample_ratio))).map(process_func, batched=True, batch_size=1000)
 
     # valid_data['train'] = valid_data['train'].remove_columns(['task', 'instruction'])
-    ValidSet = valid_data['train'].shuffle().map(process_func, batched=True, batch_size=1000)
+    if args.valid_select > 0:
+        if len(datasets) == 1:
+            ValidSet = valid_data['train'].shuffle().map(process_func, batched=True, batch_size=1000)
+        else:
+            ValidSet = valid_data.shuffle().map(process_func, batched=True, batch_size=1000)
         
     
     
@@ -312,7 +332,10 @@ def main():
                 tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
             ),
         )
+    # pdb.set_trace()
     trainer.train()
+    # if args.lora > 0:
+    #     model = model.merge_and_unload()
     
     model.save_pretrained(output_dir)
     tokenizer.save_pretrained(output_dir)
