@@ -70,18 +70,7 @@ def main():
         
     hf_key = '' # Add your huggingface token if necessary
     # load model, tokenizer
-    if 't5' in args.backbone.lower():
-        config = T5Config.from_pretrained(args.backbone)
-        # model = P5_T5.from_pretrained(args.backbone, config=config)
-        model = T5ForConditionalGeneration.from_pretrained(args.backbone, config=config)
-        tokenizer = AutoTokenizer.from_pretrained(args.backbone)
-    elif 'open' in args.backbone.lower():
-        # bnb_config = BitsAndBytesConfig(
-        #     load_in_4bit=True,
-        #     bnb_4bit_quant_type='nf4',
-        #     bnb_4bit_use_double_quant=True,
-        #     bnb_4bit_compute_dtype=torch.bfloat16
-        # )
+    if 'open' in args.backbone.lower():
         model = LlamaForCausalLM.from_pretrained(
             'openlm-research/' + args.backbone,
             load_in_8bit=True,
