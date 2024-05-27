@@ -3,7 +3,7 @@
 ## Introduction
 
 This repo presents OpenP5, an open-source platform for LLM-based Recommendation development, finetuning, and evaluation.  
-> Paper: OpenP5: Benchmarking Foundation Models for Recommendation <br>
+> Paper: OpenP5: An Open-Source Platform for Developing, Training, and Evaluating LLM-based Recommender Systems <br>
 > Paper link: [https://arxiv.org/pdf/2203.13366.pdf](https://arxiv.org/pdf/2306.11134.pdf)
 
 A relevant repo regarding how to create item ID for recommendation foundation models is available here:
@@ -12,6 +12,8 @@ A relevant repo regarding how to create item ID for recommendation foundation mo
 > GitHub link: [https://github.com/Wenyueh/LLM-RecSys-ID](https://github.com/Wenyueh/LLM-RecSys-ID)
 
 ## News
+-**[2024.05.27]** OpenP5 version 2.0 released!
+
 -**[2023.12.20]** We have made the first release of the project under the release-1.0 branch, which is also provided as the release-1.0 under the Release section of the project. This is a complete and readily executable branch that can help you to quickly get things running and do experiments for both T5 and LLaMA backbones. However, these two backbones are implemented as two separate python files. Currently, we are further refactoring the code to make T5 and LLaMA backbones compatible in the same codebase structure, and we will make the second release once that is finished.
 
 -**[2023.9.16]** OpenP5 now supports both T5 and LLaMA-2 backbone LLMs.
