@@ -71,11 +71,11 @@ sh ML1M_t5_sequential.sh
 ## Citation
 
 ```
-@article{xu2023openp5,
-  title={OpenP5: Benchmarking Foundation Models for Recommendation},
+@article{xu2024openp5,
+  title={OpenP5: An Open-Source Platform for Developing, Training, and Evaluating LLM-based Recommender Systems},
   author={Shuyuan Xu and Wenyue Hua and Yongfeng Zhang},
-  journal={arXiv:2306.11134},
-  year={2023}
+  journal={SIGIR},
+  year={2024}
 }
 @article{hua2023index,
   title={How to Index Item IDs for Recommendation Foundation Models},
