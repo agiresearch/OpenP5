@@ -112,7 +112,7 @@ def single_main():
     
     if args.random_initialize == 1:
         logging.info("Random initialize number related tokens")
-        initialization.random_initialization(model, tokenizer)
+        initialization.random_initialization(model, tokenizer, args.backbone)
     
     if args.load:
         logging.info(f"Load model from {args.model_path}")
@@ -195,7 +195,7 @@ def distributed_main(local_rank, args):
     if args.random_initialize == 1:
         if local_rank == 0:
             logging.info("Random initialize number related tokens")
-        initialization.random_initialization(model, tokenizer)
+        initialization.random_initialization(model, tokenizer, args.backbone)
     
     if args.load:
         if local_rank == 0:
