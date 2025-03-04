@@ -22,7 +22,7 @@ A relevant repo regarding how to create item ID for recommendation foundation mo
 
 ## Environment
 
-Environment requirements can be found in `./environment.txt`
+Environment requirements can be found in `.src/src_t5/environment_t5.txt` and `.src/src_llama/environment_llama.txt
 
 ## Data Statistics
 
@@ -43,7 +43,7 @@ The statistics of the selected ten datasets can be found below:
 
 ## Usage
 
-Download the data from [Google Drive link](https://drive.google.com/drive/folders/1W5i5ryetj_gkcOpG1aZfL5Y8Yk6RxwYE?usp=sharing), and put them into `./data` folder.
+Download the data from [Google Drive link](https://drive.google.com/drive/folders/17p_E-SEpGtPcvoFkMGCV8RGpHXFyzLVj?usp=sharing), and put them into `./data` folder.
 
 Run the following command to generate all data
 
@@ -60,7 +60,7 @@ sh ML1M_t5_sequential.sh
 
 ## Checkpoint
 
-The evaluation command can be found in `./test_command folder`. Run the command such as 
+Download the data from [Google Drive link](https://drive.google.com/drive/folders/17p_E-SEpGtPcvoFkMGCV8RGpHXFyzLVj?usp=sharing), and put them into `./checkpoint` folder. The evaluation command can be found in `./test_command folder`. Run the command such as 
 
 ```
 cd ./test_command
