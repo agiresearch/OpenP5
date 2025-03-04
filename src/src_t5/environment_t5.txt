@@ -1,5 +1,5 @@
 python==3.9.7
-transformers==4.12.1
+transformers==4.26.0
 torch==1.8.1+cu111
 sklearn==1.1.2
 torchvision==0.9.1+cu111
