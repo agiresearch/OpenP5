@@ -22,7 +22,7 @@ A relevant repo regarding how to create item ID for recommendation foundation mo
 
 ## Environment
 
-Environment requirements can be found in `.src/src_t5/environment_t5.txt` and `.src/src_llama/environment_llama.txt
+Environment requirements can be found in `.src/src_t5/environment_t5.txt` and `.src/src_llama/environment_llama.txt`
 
 ## Data Statistics
 
