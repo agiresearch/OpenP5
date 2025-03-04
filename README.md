@@ -43,7 +43,7 @@ The statistics of the selected ten datasets can be found below:
 
 ## Usage
 
-Download the data from [Google Drive link](https://drive.google.com/drive/folders/17p_E-SEpGtPcvoFkMGCV8RGpHXFyzLVj?usp=sharing), and put them into `./data` folder.
+Download the data from [Google Drive link](https://drive.google.com/drive/folders/1W5i5ryetj_gkcOpG1aZfL5Y8Yk6RxwYE?usp=drive_link), and put them into `./data` folder.
 
 Run the following command to generate all data
 
@@ -60,7 +60,7 @@ sh ML1M_t5_sequential.sh
 
 ## Checkpoint
 
-Download the data from [Google Drive link](https://drive.google.com/drive/folders/17p_E-SEpGtPcvoFkMGCV8RGpHXFyzLVj?usp=sharing), and put them into `./checkpoint` folder. The evaluation command can be found in `./test_command folder`. Run the command such as 
+Download the checkpoint from [Google Drive link](https://drive.google.com/drive/folders/19v7vgNBkIRdBm4FwPgHHiRz6Dnom29aR?usp=drive_link), and put them into `./checkpoint` folder. The evaluation command can be found in `./test_command folder`. Run the command such as 
 
 ```
 cd ./test_command
